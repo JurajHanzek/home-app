@@ -2,77 +2,51 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:home_hub/app/home_hub_app.dart';
-import 'package:home_hub/core/widgets/async_state_view.dart';
+import 'package:home_hub/features/auth/presentation/auth_screens.dart';
 
 void main() {
-  testWidgets('home navigation and theme switch are available', (tester) async {
+  testWidgets('unconfigured app stays on the safe setup screen', (
+    tester,
+  ) async {
     await tester.pumpWidget(const ProviderScope(child: HomeHubApp()));
     await tester.pumpAndSettle();
 
-    expect(find.text('What matters right now?'), findsOneWidget);
-    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.text('Connect your household'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.text('Sign up'), findsNothing);
+  });
 
-    await tester.tap(find.byTooltip('Switch to Flower Mode'));
+  testWidgets('Flower theme remains switchable on setup screen', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: HomeHubApp()));
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('Switch to Dark Mode'), findsOneWidget);
+    await tester.tap(find.text('Flower Mode'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dark Mode'), findsOneWidget);
     expect(
-      Theme.of(tester.element(find.text('HomeHub'))).brightness,
+      Theme.of(tester.element(find.text('Connect your household'))).brightness,
       Brightness.light,
     );
   });
 
-  testWidgets('expenses can be opened from Home', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: HomeHubApp()));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Expenses'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Expenses is ready for its phase.'), findsOneWidget);
-  });
-
-  testWidgets('async error shows a retry action without exposing details', (
+  testWidgets('sign-in screen has no public account creation flow', (
     tester,
   ) async {
-    var retries = 0;
     await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          home: Scaffold(
-            body: AsyncStateView<int>(
-              state: AsyncError<int>(
-                Exception('private detail'),
-                StackTrace.current,
-              ),
-              dataBuilder: (value) => Text('$value'),
-              onRetry: () => retries++,
-            ),
-          ),
-        ),
-      ),
+      const ProviderScope(child: MaterialApp(home: SignInScreen())),
     );
+    await tester.pumpAndSettle();
 
-    expect(find.text('We couldn’t load this yet.'), findsOneWidget);
-    expect(find.textContaining('private detail'), findsNothing);
-    await tester.tap(find.text('Try again'));
-    expect(retries, 1);
-  });
+    expect(find.text('Sign in'), findsOneWidget);
+    expect(find.text('Create account'), findsNothing);
+    expect(find.text('Sign up'), findsNothing);
 
-  testWidgets('async loading shows progress', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          home: Scaffold(
-            body: AsyncStateView<int>(
-              state: const AsyncLoading<int>(),
-              dataBuilder: (value) => Text('$value'),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    await tester.tap(find.text('Sign in'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter your email address'), findsOneWidget);
+    expect(find.text('Enter your password'), findsOneWidget);
   });
 }

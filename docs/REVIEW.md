@@ -1,38 +1,105 @@
 # HomeHub — Development Review
 
 ## Current phase
-Phase 1 — Auth / Household / Security (Phase 0 complete on 2026-10-01).
+Phase 7 — Home Dashboard, Global Search, Unified Archive and Activity foundation implementation checkpoint. Phase 6 is owner-approved; existing Phase 0–6 behavior and theme revisions are retained. Phase 8 has not started. Hosted migration deployment, runtime pgTAP and the separate production APK checkpoint remain pending.
+
+## Phase 7 completion
+- Replaced basic Home with a scrolling dashboard: today's overlapping events and unfinished due tasks, overdue-task Attention, near-term missing-meal-ingredient Attention, Next Meal with optional recipe image and Shopping link, semantic task counts, next-two-meal/unchecked-General Shopping counts, current-calendar-month expense and payer totals, and five recent Activity entries.
+- Reused Calendar date overlap, per-meal Shopping rows and integer-cent expense summaries. Done/archived tasks do not appear as actionable tasks. Overdue means due before the local current date; Today/Attention previews are capped with links to full features. Missing ingredients are Attention only for the next meal today or tomorrow.
+- Composed existing feature providers and realtime subscriptions. Home refreshes on pull/resume and updates time-derived selections each minute. A bounded dashboard load exposes retry; Activity loads separately, so missing Phase 7 schema does not block Home's existing-domain summaries.
+- Added Home Search/Archive actions, explicit-submit case-insensitive literal substring search across Tasks (title/description), Recipes, Meals, Events and Expenses, and grouped archived records. Shopping is excluded. Results include archive labels, load in pages of 100, and handle empty query/no results/loading/error/retry.
+- Added standalone entity detail routes selecting the requested ID and reusing existing detail widgets, editors and restore handlers. Search/Archive refresh on return. Recipe/Meal/Expense archived details expose restore; task restore uses its existing status menu; Calendar retains its restore action. Missing records show a controlled unavailable state. Five bottom destinations are unchanged.
+- Added additive migration `20261003120000_phase7_home_activity_search.sql`: read-only-to-clients, forced-RLS `activity_log`, six private parent-mutation triggers, Realtime publication and security-invoker paginated Search RPC. Triggers derive actor from Auth and household from the entity, validate membership, suppress no-op/audit-only saves and store no sensitive snapshots. Existing migrations, RLS and grants were not weakened.
+- Added typed Activity repository/model, five-entry Home preview and latest-50 Activity / Inbox screen. Phase 8 can compose notification records and combined filters later; no notifications/FCM were implemented.
+- Added 25 Flutter tests for dashboard rules, both themes at all three font sizes, empty states, HTTP repository boundaries, activity ordering, all-five-entity detail navigation/back, grouped Archive, existing restore behavior and Search loading/error/retry. Added 42 pgTAP assertions for Activity grants/identity/isolation/lifecycle and RLS-backed Search/Archive behavior.
+
+## Handoff audit
+- At takeover, untracked Phase 6 Flutter files were `lib/features/expenses/domain/expense.dart`, `data/expenses_repository.dart`, `presentation/expense_editor.dart`, and `presentation/expenses_screen.dart`. `lib/app/router.dart` already routed Home's Expenses entry to the new screen.
+- The existing model/repository/UI already implemented integer-cent totals, EUR, category and payer breakdowns, category CRUD/archive, expense create/edit/archive/restore, realtime subscriptions and optional receipts. There were no Expenses Dart tests yet. Row taps opened the editor, not details, and the standalone route lacked a Scaffold/back navigation.
+- Migration `20261002180000_phase6_expenses.sql` and `expenses_security.test.sql` were already present. The migration enabled/forced RLS, scoped policies to household membership, validated payer/category through composite foreign keys, seeded seven categories and added parent-authorized Storage policies. The suite initially contained 35 assertions but omitted cross-household payer/category and actual Storage access checks.
+- Receipts already reused the existing Android picker, resizing toward a maximum 1920-pixel edge and compressing JPEGs toward 500 KB. Paths were stable and URLs temporary, but filenames used microsecond timestamps rather than required UUIDs.
+- Existing modified docs (`ARCHITECTURE`, `CHANGELOG`, `DATABASE`, `PRODUCT_SPEC`, `REVIEW`, `ROADMAP`, and `supabase/README.md`) described Phase 5, not completed Phase 6. `DECISIONS.md` had no uncommitted changes. Untracked Calendar Flutter files, migration, security suite and model/widget tests were retained.
+- Prior documentation reported successful Phase 5 formatting, analysis, 31 tests and APK build; an APK artifact existed. No saved command output established completed Phase 6 checks. The first fresh analysis found two missing-brace notices and an unused refresh-result warning in Expenses. These are fixed.
+
+## Phase 6 completion
+- Flower navigation now has flowering vines wrapping the top and side edges of the bottom menu. Leaves and blossoms animate briefly on entry and tab changes, then settle; reduced-motion settings skip animation. Decorations ignore touches and accessibility focus, with space reserved around the five destinations.
+- Tasks now matches Expenses' on-demand filter pattern: a Filters button opens status/category choices; only applied selections appear as removable chips with Clear all. Apply/Cancel/Reset preserve deliberate selection behavior. Category management and archived tasks remain accessible from toolbar actions in both themes.
+- Flower Tasks follow-up: removed card/filter-panel outlines, softened status badges into borderless pills and status strips into rounded inset markers, added subtle floral card watermarks and roomier padding. Task status colors stay visible; Dark styling is unchanged.
+- Follow-up device review: fixed Task/Event/Expense editor field spacing and clipped floating labels; increased Flower greenery and flower density. Calendar event days now use larger dots plus colored rings/tints, with brighter dark-mode markers. Task status indicators use stronger colors, wider strips and bordered badges in both themes. Stored event colors are preserved; contrast adjustments apply only to display.
+- Redesigned Flower Mode from the owner's botanical references: mint/ivory background, forest-green actions, sage selection colors, ivory cards and soft pill-shaped controls. Original vector flowers/leaves decorate screen corners behind content. A 1.8-second bloom entrance settles to still artwork; reduced-motion settings skip it. The decorative layer ignores touches and accessibility focus, and uses no downloaded assets or continuous animation loop. AMOLED Dark Mode is retained.
+- Refined the shared Dark Mode theme to true-black AMOLED backgrounds, neutral near-black surfaces, subtle borders and a restrained cool-blue accent. Cards, dialogs, forms, buttons, navigation and Android system bars use the centralized theme. Existing semantic task colors and Flower Mode are preserved.
+- Added an on-demand Filters dialog for month/year, category (including archived categories), payer and shared/personal type. Nothing is preselected. Only applied filters appear as removable chips; Cancel preserves the current selection and Clear all restores the unfiltered ledger. Filtered totals reflect the matching rows in the active/archived view.
+- Added a standalone Expenses Scaffold/back action and read-only details displaying amount, category, payer, creator, date, shared state, note, archive state and optional full receipt. Home access and the five bottom-navigation destinations are retained.
+- Completed create/edit/detail/archive/restore and manageable/archivable categories. Archived category labels remain visible on historical expenses and editable on their existing rows; they are excluded from new-expense choices.
+- Current-month totals exclude archived expenses and other months/years, include both shared and personal entries, and group payer totals by `paid_by`, not `created_by`. No debt, reimbursement, settlement, OCR, bank integration, budgeting or currency conversion was introduced.
+- Kept receipt selection/preview/replacement/removal and Android compression. New paths are `{household_id}/expenses/{expense_id}/{uuid}.jpg` in private `household-media`; one-hour signed URLs exist only in memory. Missing media falls back without losing the ledger. Refresh renews signed URLs.
+- Preserved the additive Phase 6 migration; tightened insert column grants and exact receipt-path validation. Earlier migrations/policies were not changed. Expanded the pgTAP suite to 49 assertions including household isolation, foreign payer/category rejection, archived category retention, receipt optionality, Storage reads/uploads, immutable creator and archive/restore.
+- Added `expense_model_test.dart`, `expenses_repository_test.dart`, and `expenses_screen_test.dart` covering monetary/date rules, HTTP payloads, UUID receipt uploads, failed attachment cleanup, archive/restore, details, editing, optional receipt selection/removal, archived categories, and loading/error/retry/empty states. UUID was promoted from an existing transitive package to a direct dependency; cached `http` is a test dependency. No package versions changed.
 
 ## Implemented
-- Created an Android-only Flutter app with feature-oriented `app`, `core`, and `features` folders.
-- Added Material 3 Dark and Flower themes with a Riverpod theme toggle; Dark is the initial theme.
-- Added go_router navigation for Home, Tasks, Meals, Calendar, and Shopping. Expenses is reachable from Home.
-- Added optional Supabase initialization from `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` Dart defines. The app remains runnable without backend config; no credentials are committed.
-- Added a reusable loading/error/retry widget and widget coverage for it, navigation, and theme switching.
-- Added Android internet permission and app label, and set the app version to 0.0.1.
-- Disabled Kotlin incremental compilation in the Android Gradle project to avoid a Windows cross-drive cache failure between the `C:` Pub cache and `D:` workspace.
+- Replaced the Meals placeholder with an upcoming planned-meals view and an accessible recipe library. Past and archived meals are separate views.
+- Added custom meal creation without a recipe, and creation from a selected reusable recipe. Saving a custom meal as a reusable recipe is an explicit opt-in.
+- Added planned date, optional time and meal slot, name, servings, notes, ingredients, optional recipe reference, edit, archive/restore, and detail views.
+- Added per-meal ingredient availability controls. Recipe ingredients are copied into new independent meal ingredient rows, initially `have=false`; recipe edits do not rewrite existing meal ingredients. Ingredient strings are not merged or normalized.
+- Added reusable recipe CRUD with ordered ingredients, optional quantity/unit, instructions/notes, archive/restore, and private compressed recipe images stored by stable path with temporary signed display URLs.
+- Added recipe image controls to Create/Edit Recipe and the custom-meal “Also save as a reusable recipe” flow: Android picker, pre-save preview, replace, clear selection, and remove existing image. Images stay attached to the recipe; meal cards show the linked recipe's current image without creating duplicate Storage objects.
+- Enlarged recipe-library thumbnails and added a theme-token placeholder for recipes without an image. Unavailable/expired image signing now falls back to the placeholder instead of failing the entire Meals load.
+- Replacing or removing a recipe image updates its stable database path and attempts to delete the old private object. Recipe media is not part of task-image cleanup.
+- Added household-scoped realtime subscriptions for recipes, recipe ingredients, meals, and meal ingredients.
+- Added typed meal/recipe models and repository methods. `create_planned_meal` is an invoker-authorized database function that creates a meal and its ingredient snapshot atomically under RLS.
+- Added tests for independent meal state, recipe edit independence, custom meals without recipes, optional meal time, and upcoming-first navigation.
+- Replaced the Shopping placeholder with the approved two-section flow: Next 2 meals and General.
+- Next 2 meals selects the next two non-archived upcoming meals in chronological date/time order, and displays only each meal's `have=false` rows. Ingredient labels and duplicates are preserved and grouped by meal; checking a row updates only that meal ingredient ID. Meals with no missing ingredients and fewer than two upcoming meals render gracefully.
+- Added the independent household General list with quick add, edit, check/uncheck, archive/restore, and a collapsed Completed section so checked items do not crowd active shopping. General strings are passed and displayed as entered.
+- Added typed Shopping models/repository, controlled empty/loading/error/retry states, pull-to-refresh, and subscriptions to General rows, meals, and meal ingredients. The app does not persist meal-derived shopping duplicates or implement grouped notification logic.
+- Replaced the Calendar placeholder with a compact household schedule. Agenda groups Today and Upcoming, with Past and Archived views available separately.
+- Added event create/edit/detail/archive/restore for title, description, start/end date and time, all-day, location, optional category, color, up to two assignees, and optional reminder. Events remain visible to the whole household regardless of assignment.
+- Reminder timestamps remain unset by default and are saved only after explicit opt-in. Recurrence metadata is preserved in JSON-ready fields; automatic event generation and push delivery are not implemented.
+- Added typed Calendar models/repository, household profile mapping for assignee names, loading/error/retry/empty states, pull-to-refresh, and realtime subscriptions to events and assignees.
+- Added a 20-second Calendar load timeout and a specific setup message for missing Calendar tables/schema-cache errors, with retry, so an unresponsive request does not leave an indefinite spinner.
+- Added a compact Month | Agenda selector. Month is the default and uses a seven-column Monday-first grid, highlighted Today, previous/next/Today controls, capped event-color dots, and a chronological selected-day event list. Month-created events start on the selected day; existing event details, assignment names, CRUD, reminders, archive/restore and realtime are retained.
+
+## Migration and security
+- Added additive migration `supabase/migrations/20261002120000_phase3_meals_recipes.sql` for recipes, recipe ingredients, meals, meal ingredients, indexes, timestamp triggers, recipe Storage policies, and the planned-meal creation function.
+- All four tables enable and force RLS. Parent recipes/meals authorize through `private.current_household_id()`; child policies authorize through their parent, and composite foreign keys preserve household ownership.
+- Authenticated grants are explicit and protect row IDs, household IDs, creator IDs, and parent IDs from client updates. The meal creation RPC runs as the caller, has a pinned empty `search_path`, and is executable only by `authenticated`.
+- Recipe images use the existing private `household-media` bucket under household/recipe paths. The existing task RLS and Storage policies were not changed.
+- Added `supabase/tests/database/meals_security.test.sql` with 29 pgTAP assertions for forced RLS, grants, tenant isolation, child authorization, recipe snapshots, independent `have` state, custom meals, and private Storage policy definitions.
+- The next-two-meals Phase 4 query is documented: order active meals by date/time, then return each meal's `have=false` ingredients grouped by meal without changing strings.
+- Added additive migration `supabase/migrations/20261002140000_phase4_shopping.sql` for `shopping_general`, indexes, updated-at trigger, narrow authenticated grants, forced household RLS, and Realtime publication. It does not modify earlier schemas or data.
+- Added `supabase/tests/database/shopping_security.test.sql` with 21 assertions for General household isolation, meal/ingredient RLS, exact-row state changes, narrow grants, Realtime publication, and preserved forced RLS on existing Phase 1–3 tables.
+- Added additive migration `supabase/migrations/20261002160000_phase5_calendar.sql` for events and event assignments, recurrence-ready JSON, indexes, updated-at trigger, household RLS, explicit grants, a concurrency-safe maximum-two-assignee trigger, and Realtime publication entries.
+- Both Calendar tables enable and force RLS. Event policies authorize through the current household and authenticated actor; child assignment policies check the parent event and same-household profile. Composite foreign keys preserve event/profile household ownership. Assignment rows cannot change event/user/household IDs through client updates.
+- Added `supabase/tests/database/calendar_security.test.sql` with 31 pgTAP assertions covering RLS/grants, isolation, assignments, archive/restore, opt-in reminder defaults, recurrence metadata, Realtime, and unchanged forced RLS on Phase 1–4 tables.
+
+## Hosted Supabase status
+- Supabase CLI 2.119.0 is available locally and the workspace is linked.
+- The last confirmed hosted migration history in the Phase 3 checkpoint had Phase 1 and Phase 2 applied and Phase 3 pending. The product owner says they will apply Phase 3 manually if still pending; completion was not confirmed in this workspace.
+- A fresh read-only migration-list check could not run because the Supabase CLI attempted to write telemetry under the user's `.supabase` directory, which is outside the writable project workspace. No hosted migration was pushed in this Phase 4 work.
+- Phase 4–7 migrations are additive and prepared for owner deployment after their prerequisites. No hosted migration was pushed and no hosted data/schema was changed by this agent. Check the current migration history and dry run before manually applying migrations in timestamp order.
 
 ## Verification
+- Flower navigation follow-up: formatting and `flutter analyze --no-pub` passed; both new widget tests passed, covering all five destinations, finite animation replay and reduced-motion behavior on a narrow screen with a bottom safe-area inset.
 - `dart format .`: passed.
-- `flutter analyze`: passed with no issues.
-- `flutter test`: passed (4 widget tests).
-- `gradlew assembleDebug --console=plain`: passed; Android debug APK assembled.
-- No Android emulator/device was attached (`adb devices` was empty), so an installed-device launch smoke check was unavailable.
-- database/RLS checks: not applicable in Phase 0; no schema or backend policies added.
-- No Git metadata was present in the provided workspace, so Git status/cleanliness could not be verified.
+- `flutter analyze --no-pub`: passed with no issues.
+- `flutter test --no-pub`: passed (80 tests), including all 55 existing tests after the Phase 6 theme/navigation revisions and 25 new Phase 7 tests. The original Expenses checkpoint had 48 tests; subsequent approved UI revisions increased that baseline.
+- `git diff --check`: passed. No APK was built/configured in Phase 7. The existing `build/app/outputs/flutter-apk/app-debug.apk` belongs to the earlier Phase 6 UI checkpoint and does not contain Phase 7.
+- A fresh `docker info` confirmed Docker's engine pipe is unavailable. The Phase 1–7 pgTAP suites, including 49 Expenses and 42 Phase 7 assertions, remain authored but not executed. No destructive `db reset` or hosted migration deployment was run. Database/RLS/Storage policies have been statically inspected, not runtime-verified.
+- Git status and commits remain user-managed.
 
-## Security and known issues
-- Supabase remains unconfigured until client-safe project URL and publishable key are supplied at build time. Auth, migrations, and RLS begin in Phase 1.
-- Android/Gradle emitted deprecation and Android SDK metadata warnings from the installed toolchain and dependencies; the debug APK build succeeded.
-- The Windows Kotlin incremental compilation workaround trades build speed for successful cross-drive builds.
+## Known limitations and manual work
+- The owner should confirm/apply earlier migrations before deploying Phase 7. From the project root, inspect `node_modules/.bin/supabase.cmd migration list` and `node_modules/.bin/supabase.cmd db push --dry-run`, then manually apply pending additive migrations in timestamp order or run their complete SQL contents in order in the hosted SQL Editor. Apply Phase 7 after all Phase 1–6 prerequisites. Phase 4–7 have not been deployed by this agent. Search/Archive/Activity require the new migration and refreshed PostgREST schema cache.
+- Activity starts on migration application, without historical backfill. Administrative writes without an authenticated actor are not attributed; child-only checklist/ingredient/assignment changes are not individually logged. The Activity / Inbox screen currently shows the latest 50 Activity records; notification filters/delivery belong to Phase 8.
+- Search uses simple substring scans and offset pagination suitable for the initial small household. Home/detail routes reuse the existing feature-loaded datasets and their query-size/performance limits; server-side dashboard aggregation and large-history optimization are not implemented. Home displays a retry state if one of its five domain loads fails, while Activity remains independently available.
+- Two-device realtime, hosted trigger/RLS behavior, Android system-back and physical-device visual checks still require a smoke test after owner deployment. Flutter tests validate route push/pop, mocked repository behavior and layouts, not hosted delivery. No production APK was built.
+- The database security suites have not run against Postgres. When Docker Desktop's Linux engine is available, run `node_modules/.bin/supabase.cmd start` and `node_modules/.bin/supabase.cmd test db`. No local database reset was performed.
+- Recipe editing writes the parent and child ingredients in separate requests; a network interruption can leave a partially saved recipe. Creating a planned meal from a recipe or as a custom meal is atomic in the database function.
+- Old recipe image objects are removed on explicit replacement/removal on a best-effort basis. If Storage cleanup fails after the database path changes, the old private object can remain orphaned; recipe images are deliberately excluded from task-image cleanup.
+- Calendar event edits save the parent event and replace assignee rows in sequential requests. A network failure after a parent update or assignee deletion can leave a partially applied edit; refresh reveals persisted state.
+- Calendar requires the Phase 5 migration to be applied remotely. Without it, PostgREST table/relationship errors now show a migration/schema-cache hint; a slow or unreachable request now changes to a retryable timeout state.
+- Expense creation and optional receipt attachment use separate requests. A failed receipt upload leaves the expense saved and shows a specific message so users can edit it to retry. Old/private objects can remain if best-effort cleanup fails; no automatic cleanup was added. Expired receipt display URLs are renewed by ledger refresh.
+- Android receipt picker/compression and two-device realtime/Storage behavior still need a device smoke test against the owner-deployed schema. Flutter tests mock the platform picker and HTTP boundary; the Android APK compilation passed.
+- Reminder delivery, recurrence generation, ingredient aggregation, and pantry state remain unimplemented.
 
-## Questions still requiring product review
-1. Final Expenses navigation placement.
-2. Initial expense category seed list.
-3. Exact storage warning thresholds (count, MB, or both).
-4. Whether Done tasks stay until manual archive or later gain configurable auto-archive.
-5. Default reminder timing for tasks/events/missing ingredients.
-6. Whether notification history and activity are combined or separate views.
-
-## Phase handoff format
-Agent must update this with: phase completed, concise summary, architecture/schema deviations, migrations, verification results, security/RLS notes, known issues and only material product questions.
+## Product questions
+None. Stop at the completed Phase 7 implementation checkpoint for owner review. Phase 8 has not started. Runtime pgTAP, manual hosted deployment and the separate owner-reviewed production APK checkpoint remain pending.
